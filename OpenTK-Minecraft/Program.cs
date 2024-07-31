@@ -1,3 +1,13 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿namespace OpenTK_Minecraft;
 
-Console.WriteLine("Hello, World!");
+class program
+{
+    static void Main(string[] args)
+    {
+        using(Game game = new Game(500, 500))
+        {
+            game.Run();
+        }
+    }
+    
+}
