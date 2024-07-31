@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using OpenTK.Windowing.Common;
-using OpenTK.Graphics.OpenGL;
+using OpenTK.Graphics.OpenGL4;
 
 namespace OpenTK_Minecraft;
 
@@ -49,8 +49,20 @@ public class Game : GameWindow
         VAO = GL.GenVertexArray();
 
         int vbo = GL.GenBuffer();
+
         GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
+
+        GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+
+        //bind the vao
+        GL.BindVertexArray(VAO);
+
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 0, 0);
+
+        GL.EnableVertexArrayAttrib(VAO, 0);
+
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0); //unbind vbo
+        GL.BindVertexArray(0);
     }
 
     protected override void OnUnload()
@@ -73,4 +85,26 @@ public class Game : GameWindow
     {
         base.OnUpdateFrame(args);
     }
+
+    //Function arra, hogy beolvasson egy txt file-t majd stringbe adja vissza a tartalmát
+
+    public static string LoadShaderSource(string FilePath)
+    {
+        string shaderSource = "";
+
+        try
+        {
+            using (StreamReader reader = new StreamReader ("../../../Shaders/" + FilePath))
+            {
+                shaderSource = reader.ReadToEnd();
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Nem sikerült betölteni a shader source file-t" + e.Message);
+        }
+
+        return shaderSource;
+    }
+
 }
