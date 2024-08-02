@@ -1,190 +1,334 @@
-﻿using OpenTK.Windowing.Desktop;
+﻿using StbImageSharp;
+using OpenTK.Windowing.Desktop;
 using OpenTK.Mathematics;
 using OpenTK.Graphics;
 using OpenTK.Windowing.Common;
 using System;
-using System.IO;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
-using StbImageSharp;
 
 namespace OpenTK_Minecraft
 {
-    public class Game : GameWindow
+    // Game class that inherets from the Game Window Class
+    internal class Game : GameWindow
     {
-        float[] vertices =
+        // set of vertices to draw the triangle with (x,y,z) for each vertex
+
+        List<Vector3> vertices = new List<Vector3>()
         {
-            // positions          // texture coords
-            -0.5f,  0.5f, 0f,   0.0f, 1.0f, // top left
-             0.5f,  0.5f, 0f,   1.0f, 1.0f, // top right
-             0.5f, -0.5f, 0f,   1.0f, 0.0f, // bottom right
-            -0.5f, -0.5f, 0f,   0.0f, 0.0f  // bottom left
+            // front face
+            new Vector3(-0.5f, 0.5f, 0.5f), // topleft vert
+            new Vector3(0.5f, 0.5f, 0.5f), // topright vert
+            new Vector3(0.5f, -0.5f, 0.5f), // bottomright vert
+            new Vector3(-0.5f, -0.5f, 0.5f), // bottomleft vert
+            // right face
+            new Vector3(0.5f, 0.5f, 0.5f), // topleft vert
+            new Vector3(0.5f, 0.5f, -0.5f), // topright vert
+            new Vector3(0.5f, -0.5f, -0.5f), // bottomright vert
+            new Vector3(0.5f, -0.5f, 0.5f), // bottomleft vert
+            // back face
+            new Vector3(0.5f, 0.5f, -0.5f), // topleft vert
+            new Vector3(-0.5f, 0.5f, -0.5f), // topright vert
+            new Vector3(-0.5f, -0.5f, -0.5f), // bottomright vert
+            new Vector3(0.5f, -0.5f, -0.5f), // bottomleft vert
+            // left face
+            new Vector3(-0.5f, 0.5f, -0.5f), // topleft vert
+            new Vector3(-0.5f, 0.5f, 0.5f), // topright vert
+            new Vector3(-0.5f, -0.5f, 0.5f), // bottomright vert
+            new Vector3(-0.5f, -0.5f, -0.5f), // bottomleft vert
+            // top face
+            new Vector3(-0.5f, 0.5f, -0.5f), // topleft vert
+            new Vector3(0.5f, 0.5f, -0.5f), // topright vert
+            new Vector3(0.5f, 0.5f, 0.5f), // bottomright vert
+            new Vector3(-0.5f, 0.5f, 0.5f), // bottomleft vert
+            // bottom face
+            new Vector3(-0.5f, -0.5f, 0.5f), // topleft vert
+            new Vector3(0.5f, -0.5f, 0.5f), // topright vert
+            new Vector3(0.5f, -0.5f, -0.5f), // bottomright vert
+            new Vector3(-0.5f, -0.5f, -0.5f), // bottomleft vert
+        };
+
+        List<Vector2> texCoords = new List<Vector2>()
+        {
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(1f, 0f),
+            new Vector2(0f, 0f),
+
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(1f, 0f),
+            new Vector2(0f, 0f),
+
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(1f, 0f),
+            new Vector2(0f, 0f),
+
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(1f, 0f),
+            new Vector2(0f, 0f),
+
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(1f, 0f),
+            new Vector2(0f, 0f),
+
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(1f, 0f),
+            new Vector2(0f, 0f),
         };
 
         uint[] indices =
         {
-            0, 1, 2,  // top triangle
-            2, 3, 0   // bottom triangle
+            // first face
+            // top triangle
+            0, 1, 2,
+            // bottom triangle
+            2, 3, 0,
+
+            4, 5, 6,
+            6, 7, 4,
+
+            8, 9, 10,
+            10, 11, 8,
+
+            12, 13, 14,
+            14, 15, 12,
+
+            16, 17, 18,
+            18, 19, 16,
+
+            20, 21, 22,
+            22, 23, 20
         };
 
-        int VAO;
+        // Render Pipeline vars
+        int vao;
         int shaderProgram;
-        int VBO;
+        int vbo;
+        int textureVBO;
         int ebo;
         int textureID;
 
+
+        // transformation variables
+        float yRot = 0f;
+
+        // width and height of screen
+        int width, height;
+        // Constructor that sets the width, height, and calls the base constructor (GameWindow's Constructor) with default args
         public Game(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
         {
+            this.width = width;
+            this.height = height;
+
+            // center window
             CenterWindow(new Vector2i(width, height));
         }
-
+        // called whenever window is resized
         protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);
             GL.Viewport(0, 0, e.Width, e.Height);
+            this.width = e.Width;
+            this.height = e.Height;
         }
 
+        // called once when game is started
         protected override void OnLoad()
         {
             base.OnLoad();
 
-            VAO = GL.GenVertexArray();
-            VBO = GL.GenBuffer();
+            // generate the vbo
+            vao = GL.GenVertexArray();
+
+            // bind the vao
+            GL.BindVertexArray(vao);
+
+            // --- Vertices VBO ---
+
+            // generate a buffer
+            vbo = GL.GenBuffer();
+            // bind the buffer as an array buffer
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
+            // Store data in the vbo
+            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * Vector3.SizeInBytes, vertices.ToArray(), BufferUsageHint.StaticDraw);
+
+
+            // put the vertex VBO in slot 0 of our VAO
+
+            // point slot (0) of the VAO to the currently bound VBO (vbo)
+            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 0, 0);
+            // enable the slot
+            GL.EnableVertexArrayAttrib(vao, 0);
+
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+
+            // --- Texture VBO ---
+
+            textureVBO = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, textureVBO);
+            GL.BufferData(BufferTarget.ArrayBuffer, texCoords.Count * Vector2.SizeInBytes, texCoords.ToArray(), BufferUsageHint.StaticDraw);
+
+
+            // put the texture VBO in slot 1 of our VAO
+
+            // point slot (1) of the VAO to the currently bound VBO (vbo)
+            GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 0, 0);
+            // enable the slot
+            GL.EnableVertexArrayAttrib(vao, 1);
+
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+
+            // unbind the vbo and vao respectively
+
+            GL.BindVertexArray(0);
+
+
             ebo = GL.GenBuffer();
-
-            GL.BindVertexArray(VAO);
-
-            GL.BindBuffer(BufferTarget.ArrayBuffer, VBO);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
-
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
             GL.BufferData(BufferTarget.ElementArrayBuffer, indices.Length * sizeof(uint), indices, BufferUsageHint.StaticDraw);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
 
-            // Position attribute
-            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
-            GL.EnableVertexAttribArray(0);
 
-            // Texture coord attribute
-            GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 3 * sizeof(float));
-            GL.EnableVertexAttribArray(1);
+            // create the shader program
+            shaderProgram = GL.CreateProgram();
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0); // unbind VBO
-            GL.BindVertexArray(0); // unbind VAO
-
-            // Create and compile shaders
+            // create the vertex shader
             int vertexShader = GL.CreateShader(ShaderType.VertexShader);
+            // add the source code from "Default.vert" in the Shaders file
             GL.ShaderSource(vertexShader, LoadShaderSource("Default.vert"));
+            // Compile the Shader
             GL.CompileShader(vertexShader);
-            CheckShaderCompileStatus(vertexShader);
 
+            // Same as vertex shader
             int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
             GL.ShaderSource(fragmentShader, LoadShaderSource("Default.frag"));
             GL.CompileShader(fragmentShader);
-            CheckShaderCompileStatus(fragmentShader);
 
-            // Create shader program and link shaders
-            shaderProgram = GL.CreateProgram();
+            // Attach the shaders to the shader program
             GL.AttachShader(shaderProgram, vertexShader);
             GL.AttachShader(shaderProgram, fragmentShader);
-            GL.LinkProgram(shaderProgram);
-            CheckProgramLinkStatus(shaderProgram);
 
-            // Delete shaders as they are no longer needed after linking
+            // Link the program to OpenGL
+            GL.LinkProgram(shaderProgram);
+
+            // delete the shaders
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
 
-            // -- TEXTURES --
+            // --- TEXTURES ---
             textureID = GL.GenTexture();
-
-            // Activate texture unit
+            // activate the texture in the unit
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, textureID);
 
-            // Texture parameters
+            // texture parameters
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
 
-            // Load image
+            // load image
             StbImage.stbi_set_flip_vertically_on_load(1);
             ImageResult dirtTexture = ImageResult.FromStream(File.OpenRead("../../../Textures/dirt.jpg"), ColorComponents.RedGreenBlueAlpha);
 
-            // Upload texture to GPU
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, dirtTexture.Width, dirtTexture.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, dirtTexture.Data);
-            GL.GenerateMipmap(GenerateMipmapTarget.Texture2D); // Generate mipmaps
-
-            // Unbind the texture
+            // unbind the texture
             GL.BindTexture(TextureTarget.Texture2D, 0);
-        }
 
+            GL.Enable(EnableCap.DepthTest);
+        }
+        // called once when game is closed
         protected override void OnUnload()
         {
             base.OnUnload();
 
-            GL.DeleteVertexArray(VAO);
-            GL.DeleteProgram(shaderProgram);
-            GL.DeleteBuffer(VBO);
+            // Delete, VAO, VBO, Shader Program
+            GL.DeleteVertexArray(vao);
+            GL.DeleteBuffer(vbo);
             GL.DeleteBuffer(ebo);
             GL.DeleteTexture(textureID);
+            GL.DeleteProgram(shaderProgram);
         }
-
+        // called every frame. All rendering happens here
         protected override void OnRenderFrame(FrameEventArgs args)
         {
-            GL.ClearColor(0.0f, 0.0f, 1.0f, 1.0f);
-            GL.Clear(ClearBufferMask.ColorBufferBit);
+            // Set the color to fill the screen with
+            GL.ClearColor(0.3f, 0.3f, 1f, 1f);
+            // Fill the screen with the color
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            GL.UseProgram(shaderProgram);
+            // draw our triangle
+            GL.UseProgram(shaderProgram); // bind vao
+            GL.BindVertexArray(vao); // use shader program
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
 
-            GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, textureID);
 
-            GL.BindVertexArray(VAO);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
-            GL.DrawElements(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt, 0);
 
+            // transformation matrices
+            Matrix4 model = Matrix4.Identity;
+            Matrix4 view = Matrix4.Identity;
+            Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(60.0f), width / height, 0.1f, 100.0f);
+
+
+            model = Matrix4.CreateRotationY(yRot);
+            yRot += 0.001f;
+
+            Matrix4 translation = Matrix4.CreateTranslation(0f, 0f, -3f);
+
+            model *= translation;
+
+            int modelLocation = GL.GetUniformLocation(shaderProgram, "model");
+            int viewLocation = GL.GetUniformLocation(shaderProgram, "view");
+            int projectionLocation = GL.GetUniformLocation(shaderProgram, "projection");
+
+            GL.UniformMatrix4(modelLocation, true, ref model);
+            GL.UniformMatrix4(viewLocation, true, ref view);
+            GL.UniformMatrix4(projectionLocation, true, ref projection);
+
+            GL.DrawElements(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt, 0);
+            //GL.DrawArrays(PrimitiveType.Triangles, 0, 3); // draw the triangle | args = Primitive type, first vertex, last vertex
+
+
+            // swap the buffers
             Context.SwapBuffers();
+
             base.OnRenderFrame(args);
         }
-
+        // called every frame. All updating happens here
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             base.OnUpdateFrame(args);
         }
 
+        // Function to load a text file and return its contents as a string
         public static string LoadShaderSource(string filePath)
         {
+            string shaderSource = "";
+
             try
             {
                 using (StreamReader reader = new StreamReader("../../../Shaders/" + filePath))
                 {
-                    return reader.ReadToEnd();
+                    shaderSource = reader.ReadToEnd();
                 }
             }
             catch (Exception e)
             {
                 Console.WriteLine("Failed to load shader source file: " + e.Message);
-                return string.Empty;
             }
+
+            return shaderSource;
         }
 
-        void CheckShaderCompileStatus(int shader)
-        {
-            GL.GetShader(shader, ShaderParameter.CompileStatus, out int status);
-            if (status != (int)All.True)
-            {
-                string infoLog = GL.GetShaderInfoLog(shader);
-                throw new Exception($"Shader compilation failed: {infoLog}");
-            }
-        }
-
-        void CheckProgramLinkStatus(int program)
-        {
-            GL.GetProgram(program, GetProgramParameterName.LinkStatus, out int status);
-            if (status != (int)All.True)
-            {
-                string infoLog = GL.GetProgramInfoLog(program);
-                throw new Exception($"Program linking failed: {infoLog}");
-            }
-        }
     }
 }
