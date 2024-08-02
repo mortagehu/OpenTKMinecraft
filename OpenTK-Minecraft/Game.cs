@@ -5,6 +5,7 @@ using OpenTK.Windowing.Common;
 using System;
 using System.IO;
 using OpenTK.Graphics.OpenGL4;
+using StbImageSharp;
 
 namespace OpenTK_Minecraft
 {
@@ -12,19 +13,27 @@ namespace OpenTK_Minecraft
     {
         float[] vertices =
         {
-            0f, 0.5f, 0f, // top vertex
-            -0.5f, -0.5f, 0f, // bottom left vertex
-            0.5f, -0.5f, 0f // bottom right vertex
+            // positions          // texture coords
+            -0.5f,  0.5f, 0f,   0.0f, 1.0f, // top left
+             0.5f,  0.5f, 0f,   1.0f, 1.0f, // top right
+             0.5f, -0.5f, 0f,   1.0f, 0.0f, // bottom right
+            -0.5f, -0.5f, 0f,   0.0f, 0.0f  // bottom left
+        };
+
+        uint[] indices =
+        {
+            0, 1, 2,  // top triangle
+            2, 3, 0   // bottom triangle
         };
 
         int VAO;
         int shaderProgram;
-        int width, height;
+        int VBO;
+        int ebo;
+        int textureID;
 
         public Game(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
         {
-            this.width = width;
-            this.height = height;
             CenterWindow(new Vector2i(width, height));
         }
 
@@ -32,8 +41,6 @@ namespace OpenTK_Minecraft
         {
             base.OnResize(e);
             GL.Viewport(0, 0, e.Width, e.Height);
-            this.width = e.Width;
-            this.height = e.Height;
         }
 
         protected override void OnLoad()
@@ -41,15 +48,24 @@ namespace OpenTK_Minecraft
             base.OnLoad();
 
             VAO = GL.GenVertexArray();
-            int VBO = GL.GenBuffer();
+            VBO = GL.GenBuffer();
+            ebo = GL.GenBuffer();
 
             GL.BindVertexArray(VAO);
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, VBO);
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
 
-            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, indices.Length * sizeof(uint), indices, BufferUsageHint.StaticDraw);
+
+            // Position attribute
+            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
             GL.EnableVertexAttribArray(0);
+
+            // Texture coord attribute
+            GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 3 * sizeof(float));
+            GL.EnableVertexAttribArray(1);
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0); // unbind VBO
             GL.BindVertexArray(0); // unbind VAO
@@ -75,6 +91,30 @@ namespace OpenTK_Minecraft
             // Delete shaders as they are no longer needed after linking
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
+
+            // -- TEXTURES --
+            textureID = GL.GenTexture();
+
+            // Activate texture unit
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, textureID);
+
+            // Texture parameters
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+
+            // Load image
+            StbImage.stbi_set_flip_vertically_on_load(1);
+            ImageResult dirtTexture = ImageResult.FromStream(File.OpenRead("../../../Textures/dirt.jpg"), ColorComponents.RedGreenBlueAlpha);
+
+            // Upload texture to GPU
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, dirtTexture.Width, dirtTexture.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, dirtTexture.Data);
+            GL.GenerateMipmap(GenerateMipmapTarget.Texture2D); // Generate mipmaps
+
+            // Unbind the texture
+            GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
         protected override void OnUnload()
@@ -83,6 +123,9 @@ namespace OpenTK_Minecraft
 
             GL.DeleteVertexArray(VAO);
             GL.DeleteProgram(shaderProgram);
+            GL.DeleteBuffer(VBO);
+            GL.DeleteBuffer(ebo);
+            GL.DeleteTexture(textureID);
         }
 
         protected override void OnRenderFrame(FrameEventArgs args)
@@ -91,8 +134,13 @@ namespace OpenTK_Minecraft
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
             GL.UseProgram(shaderProgram);
+
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, textureID);
+
             GL.BindVertexArray(VAO);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
+            GL.DrawElements(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt, 0);
 
             Context.SwapBuffers();
             base.OnRenderFrame(args);
